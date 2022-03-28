@@ -81,9 +81,10 @@ public class SQLGrammerParseTreeTest {
             ") ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COMMENT='站点-咨询表';";
 
     @Test
-    public void sql2Tree() throws SQLSyntaxErrorException {
-        String sql = "select t.name, t.id, (select p.name from post p where p.id = t.post_id)" +
-                "from acct t where t.id = 10 and exists (select r.id from role r where r.id = t.role_id) ;";
+    //TODO 目前筛选条件:是否走index,limit限制 2000,三表join,select * from tableName;
+    public void sql() throws SQLSyntaxErrorException {
+        String sql = "select t.*,t.name, t.id, (select p.name from post p where p.id = t.post_id)" +
+                "from acct t where t.id = 10 and exists (select r.id from role r where r.id = t.role_id) limit 1,10;";
 
         String dbType = "mysql";
         System.out.println("原始SQL 为 ： " + sql);
@@ -105,6 +106,7 @@ public class SQLGrammerParseTreeTest {
         String s = tableSource.getExpr().toString();
         System.out.println("表名:" + s);
     }
+
 
     public SQLStatement parser(String sql, String dbType) throws SQLSyntaxErrorException {
         List<SQLStatement> list = SQLUtils.parseStatements(sql, dbType);
