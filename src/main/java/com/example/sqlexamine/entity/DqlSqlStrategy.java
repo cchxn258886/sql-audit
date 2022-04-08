@@ -1,14 +1,24 @@
 package com.example.sqlexamine.entity;
 
 import com.alibaba.druid.sql.SQLUtils;
-import com.alibaba.druid.sql.ast.SQLStatement;
-import com.alibaba.druid.sql.ast.statement.SQLDDLStatement;
+import com.alibaba.druid.sql.ast.SQLExpr;
+import com.alibaba.druid.sql.ast.SQLLimit;
+import com.alibaba.druid.sql.ast.expr.SQLAllColumnExpr;
+import com.alibaba.druid.sql.ast.expr.SQLIntegerExpr;
+import com.alibaba.druid.sql.ast.expr.SQLPropertyExpr;
+import com.alibaba.druid.sql.ast.statement.SQLSelect;
+import com.alibaba.druid.sql.ast.statement.SQLSelectItem;
+import com.alibaba.druid.sql.ast.statement.SQLSelectQueryBlock;
+import com.alibaba.druid.sql.ast.statement.SQLSelectStatement;
 import com.example.sqlexamine.constant.ErrorCodeEnum;
 import com.example.sqlexamine.utils.Resp;
+import com.example.sqlexamine.vo.SqlExamineReqDQLReqVo;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 import java.sql.SQLSyntaxErrorException;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * @Author chenl
@@ -19,43 +29,97 @@ import java.util.List;
  * 有表用来存数据库信息。
  */
 @Slf4j
-public class DqlSqlStrategy implements SqlExamineBase {
-    private boolean isDatetimeJudgeEnable;
+@Component
+public class DqlSqlStrategy extends SqlStrategyBase implements SqlExamineBase {
     private static final String dbType = "mysql";
 
-    public DqlSqlStrategy(boolean isDatetimeJudgeEnable) {
-        this.isDatetimeJudgeEnable = isDatetimeJudgeEnable;
-    }
 
     @Override
-    public Resp examine(String sqlString) {
+    public Resp examine(SqlExamineReqDQLReqVo sqlExamineReqVo) {
         //TODO 目前筛选条件:是否走index,limit限制,三表join,select * from tableName;
+        String sqlString = sqlExamineReqVo.getSqlString();
         log.info("原始sql:{}", sqlString);
         SQLUtils.format(sqlString, dbType);
-        SQLDDLStatement statement = null;
+        SQLSelectStatement statement = null;
         try {
-            statement = (SQLDDLStatement) parser(sqlString, dbType);
+//                    SQLSelectStatement statement = (SQLSelectStatement) parser(sql, dbType);
+            statement = (SQLSelectStatement) super.parser(sqlString, dbType);
         } catch (SQLSyntaxErrorException e) {
             return Resp.error(ErrorCodeEnum.SYSTEM_ERR.getCode(), e.getMessage());
         }
 
+        SQLSelect select = statement.getSelect();
+        SQLSelectQueryBlock query = (SQLSelectQueryBlock) select.getQuery();
+        //判断SQL LIMIT条件是否符合要求
+        boolean isTrueOfLimit = limitConditionJudge(query);
+        if (!isTrueOfLimit) {
+            return Resp.error(ErrorCodeEnum.SQL_NOT_STANDARD.getCode(), ErrorCodeEnum.SQL_NOT_STANDARD.getMsg()).put("data", "LIMIT条件不符合规范");
+        }
+        //判断查询条件是否包含select * 这里存在bug
+        boolean isAllCondition = allConditionJudge(query);
+        if (!isAllCondition) {
+            return Resp.error(ErrorCodeEnum.SQL_NOT_STANDARD.getCode(), ErrorCodeEnum.SQL_NOT_STANDARD.getMsg()).put("data", "sql含有*号");
+        }
+
+        boolean useIndex = super.isUseIndex(sqlExamineReqVo);
+        if (!useIndex) {
+            return Resp.error(ErrorCodeEnum.SQL_NOT_STANDARD.getCode(), ErrorCodeEnum.SQL_NOT_STANDARD.getMsg()).put("data", "SQL中存在全表扫");
+        }
         return Resp.ok();
     }
 
-    private SQLStatement parser(String sql, String dbType) throws SQLSyntaxErrorException {
-        List<SQLStatement> list = SQLUtils.parseStatements(sql, dbType);
-        if (list.size() > 1) {
-            throw new SQLSyntaxErrorException("MultiQueries is not supported,use single query instead ");
+//    private SQLStatement parser(String sql, String dbType) throws SQLSyntaxErrorException {
+//        List<SQLStatement> list = SQLUtils.parseStatements(sql, dbType);
+//        if (list.size() > 1) {
+//            throw new SQLSyntaxErrorException("MultiQueries is not supported,use single query instead ");
+//        }
+//        return list.get(0);
+//    }
+
+    private boolean limitConditionJudge(SQLSelectQueryBlock query) {
+        SQLLimit limit = query.getLimit();
+        if (Objects.isNull(limit)) {
+            return true;
         }
-        return list.get(0);
+        SQLExpr rowCount = limit.getRowCount();
+        if (rowCount instanceof SQLIntegerExpr) {
+            SQLIntegerExpr rowCountValue = (SQLIntegerExpr) rowCount;
+            if (rowCountValue.getNumber().intValue() > 2000) {
+                log.error("rowCountValue超过2000");
+                return false;
+            }
+        }
+
+        SQLExpr offset = limit.getOffset();
+        if (offset instanceof SQLIntegerExpr) {
+            SQLIntegerExpr offsetValue = (SQLIntegerExpr) offset;
+            int i = offsetValue.getNumber().intValue();
+            if (i > 200) {
+                log.error("rowCountValue超过2000");
+                return false;
+            }
+        }
+        return true;
     }
 
-    public boolean limitConditionJudge() {
-        return false;
+    private boolean allConditionJudge(SQLSelectQueryBlock query) {
+        List<SQLSelectItem> selectConditionList = query.getSelectList();
+        for (SQLSelectItem sqlSelectItem : selectConditionList) {
+            SQLExpr expr = sqlSelectItem.getExpr();
+            if (expr instanceof SQLAllColumnExpr){
+                log.error("SQL含有*号");
+                return false;
+            }
+            if (expr instanceof SQLPropertyExpr ) {
+                SQLPropertyExpr expr1 = (SQLPropertyExpr) expr;
+                if (expr1.getName().equals("*")) {
+                    log.error("SQL含有*号");
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
-    public boolean allConditionJudge() {
-        return false;
-    }
 
 }

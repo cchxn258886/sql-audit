@@ -18,7 +18,7 @@ import java.net.BindException;
 public class ExceptionAdvise  {
     @ExceptionHandler(value = BizException.class)
     public Resp bizExceptionHandler(BizException e){
-        log.error("数据校验出现问题:{},异常类型:{}",e.getMessage(),e.getClass());
-        return Resp.error(ErrorCodeEnum.SQL_NOT_STANDARD.getCode(),ErrorCodeEnum.SQL_NOT_STANDARD.getMsg()).put("data",e.getMessage());
+        log.error("出现问题:{},异常类型:{}",e.getMessage(),e.getClass());
+        return Resp.error(ErrorCodeEnum.SYSTEM_ERR.getCode(),ErrorCodeEnum.SYSTEM_ERR.getMsg()).put("data",e.getMessage());
     }
 }

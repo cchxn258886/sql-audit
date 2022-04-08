@@ -8,9 +8,16 @@ import com.alibaba.druid.sql.ast.expr.SQLIdentifierExpr;
 import com.alibaba.druid.sql.ast.expr.SQLIntegerExpr;
 import com.alibaba.druid.sql.ast.statement.*;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlCreateTableStatement;
+import com.example.sqlexamine.config.SqlExamineConfig;
+import com.example.sqlexamine.constant.ErrorCodeEnum;
 import com.example.sqlexamine.exception.BizException;
 import com.example.sqlexamine.utils.Resp;
+import com.example.sqlexamine.vo.SqlExamineReqDQLReqVo;
+import com.example.sqlexamine.vo.SqlExamineReqVo;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 import org.springframework.validation.BindException;
 
 import java.sql.SQLSyntaxErrorException;
@@ -36,40 +43,48 @@ import java.util.stream.Collectors;
  * truncate目前不支持审核
  */
 @Slf4j
+@Component
 public class DdlSqlStrategy implements SqlExamineBase {
+    @Autowired
+    SqlExamineConfig sqlExamineConfig;
+
     private final static String dbType = "mysql";
 
-    private  boolean isDatetimeJudgeEnable;
 
-    public DdlSqlStrategy(boolean isDatetimeJudgeEnable) {
-        this.isDatetimeJudgeEnable = isDatetimeJudgeEnable;
-    }
+    //private final boolean isDatetimeJudgeEnable;
+
+//    public DdlSqlStrategy(boolean isDatetimeJudgeEnable) {
+//        this.isDatetimeJudgeEnable = isDatetimeJudgeEnable;
+//    }
 
     @Override
-    public Resp examine(String sqlString) {
+    public Resp examine(SqlExamineReqDQLReqVo sqlExamineReqVo) {
+        String sqlString = sqlExamineReqVo.getSqlString();
         log.info("原始sql:{}", sqlString);
         SQLUtils.format(sqlString, dbType);
         SQLDDLStatement statement = null;
         try {
             statement = (SQLDDLStatement) parser(sqlString, dbType);
         } catch (SQLSyntaxErrorException e) {
-            e.printStackTrace();
+            return Resp.error(ErrorCodeEnum.SYSTEM_ERR.getCode(),e.getMessage());
         }
         MySqlCreateTableStatement createTableStatement = (MySqlCreateTableStatement) statement;
         assert createTableStatement != null;
 
         List<SQLAssignItem> tableOptions = createTableStatement.getTableOptions();
-        Map<String, String> map = engineAndCharsetJudge(tableOptions);
-        if ((!map.get("ENGINE").equalsIgnoreCase("INNODB")) && (!map.get("ENGINE").isEmpty())){
-            throw new BizException("engine必须为innodb");
+        if (tableOptions.size() != 0){
+            Map<String, String> map = engineAndCharsetJudge(tableOptions);
+            if ((!map.get("ENGINE").equalsIgnoreCase("INNODB")) && (!map.get("ENGINE").isEmpty())){
+                throw new BizException("engine必须为innodb");
+            }
+            if (!map.get("CHARSET").equalsIgnoreCase("UTF8MB4") && !(map.get("CHARSET").isEmpty())){
+                throw new BizException("CHARSET 必须为utf8mb4");
+            }
         }
 
-        if (!map.get("CHARSET").equalsIgnoreCase("UTF8MB4") && !(map.get("CHARSET").isEmpty())){
-            throw new BizException("CHARSET 必须为utf8mb4");
-        }
         List<SQLTableElement> tableElementList = createTableStatement.getTableElementList();
         if (!judgePkOnDDL(tableElementList)) {
-            log.info("createTable语句不包含主键驳回");
+            log.info("createTable语句不包含主键");
             throw new BizException("不存在主键");
         }
         for (SQLTableElement sqlTableElement : tableElementList) {
@@ -91,7 +106,7 @@ public class DdlSqlStrategy implements SqlExamineBase {
 
         //由于历史原因需要先关闭这个判断条件
 
-        if (isDatetimeJudgeEnable) {
+        if (sqlExamineConfig.isEnable()) {
             columnWithTimeJudge(columnName, dataType);
         }
         if (columnName.contains("id")) {

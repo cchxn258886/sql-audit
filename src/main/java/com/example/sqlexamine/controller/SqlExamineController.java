@@ -3,6 +3,7 @@ package com.example.sqlexamine.controller;
 import com.example.sqlexamine.config.SqlExamineConfig;
 import com.example.sqlexamine.service.SqlExamineService;
 import com.example.sqlexamine.utils.Resp;
+import com.example.sqlexamine.vo.SqlExamineReqDQLReqVo;
 import com.example.sqlexamine.vo.SqlExamineReqVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,8 +24,8 @@ public class SqlExamineController {
 
 
     @PostMapping("/examine")
-    public Resp sqlExamineExec(@RequestBody SqlExamineReqVo SqlExamineReqVo) {
-        return sqlExamineService.examine(SqlExamineReqVo.getSqlString());
+    public Resp sqlExamineExec(@RequestBody SqlExamineReqDQLReqVo SqlExamineReqVo) {
+        return sqlExamineService.examine(SqlExamineReqVo);
     }
 
 

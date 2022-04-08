@@ -12,5 +12,5 @@ import org.springframework.context.annotation.Configuration;
 @ConfigurationProperties("examine.datetime.judge")
 @Data
 public class SqlExamineConfig {
-    private boolean enable;
+    private boolean enable = false;
 }
