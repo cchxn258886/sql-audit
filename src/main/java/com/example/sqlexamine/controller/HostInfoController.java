@@ -57,7 +57,6 @@ public class HostInfoController {
      * 保存
      */
     @RequestMapping("/save")
-    //TODO 插入数据的时候有bug 前端传入的String 这个entity是int 需要改掉
     public Resp save(@RequestBody HostInfoEntity hostInfo){
         String uuid = UUID.randomUUID().toString().replace("-", "");
         hostInfo.setUuid(uuid);
