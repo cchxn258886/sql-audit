@@ -1,13 +1,14 @@
 package com.example.sqlexamine.service;
 
-import com.example.sqlexamine.utils.Resp;
+import com.example.sqlexamine.entity.dto.StrategyDto;
 import com.example.sqlexamine.vo.SqlExamineReqDQLReqVo;
-import com.example.sqlexamine.vo.SqlExamineReqVo;
+
+import java.util.List;
 
 /**
  * @Author chenl
  * @Date 2022/3/23 11:25 上午
  */
 public interface SqlExamineService {
-    Resp examine(SqlExamineReqDQLReqVo sqlExamineReqVo);
+    List<StrategyDto> examine(SqlExamineReqDQLReqVo sqlExamineReqVo);
 }

@@ -11,12 +11,13 @@ import com.alibaba.druid.sql.ast.statement.SQLSelectItem;
 import com.alibaba.druid.sql.ast.statement.SQLSelectQueryBlock;
 import com.alibaba.druid.sql.ast.statement.SQLSelectStatement;
 import com.example.sqlexamine.constant.ErrorCodeEnum;
-import com.example.sqlexamine.utils.Resp;
+import com.example.sqlexamine.entity.dto.StrategyDto;
 import com.example.sqlexamine.vo.SqlExamineReqDQLReqVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.sql.SQLSyntaxErrorException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 
@@ -35,7 +36,7 @@ public class DqlSqlStrategy extends SqlStrategyBase implements SqlExamineBase {
 
 
     @Override
-    public Resp examine(SqlExamineReqDQLReqVo sqlExamineReqVo) {
+    public StrategyDto examine(SqlExamineReqDQLReqVo sqlExamineReqVo) {
         //TODO 目前筛选条件:是否走index,limit限制,三表join,select * from tableName;
         String sqlString = sqlExamineReqVo.getSqlString();
         log.info("原始sql:{}", sqlString);
@@ -45,7 +46,7 @@ public class DqlSqlStrategy extends SqlStrategyBase implements SqlExamineBase {
 //                    SQLSelectStatement statement = (SQLSelectStatement) parser(sql, dbType);
             statement = (SQLSelectStatement) super.parser(sqlString, dbType);
         } catch (SQLSyntaxErrorException e) {
-            return Resp.error(ErrorCodeEnum.SYSTEM_ERR.getCode(), e.getMessage());
+            return new StrategyDto(ErrorCodeEnum.SYSTEM_ERR.getCode(), e.getMessage(),sqlString,null);
         }
 
         SQLSelect select = statement.getSelect();
@@ -53,19 +54,26 @@ public class DqlSqlStrategy extends SqlStrategyBase implements SqlExamineBase {
         //判断SQL LIMIT条件是否符合要求
         boolean isTrueOfLimit = limitConditionJudge(query);
         if (!isTrueOfLimit) {
-            return Resp.error(ErrorCodeEnum.SQL_NOT_STANDARD.getCode(), ErrorCodeEnum.SQL_NOT_STANDARD.getMsg()).put("data", "LIMIT条件不符合规范");
+            StrategyDto strategyDto = new StrategyDto(ErrorCodeEnum.SQL_NOT_STANDARD.getCode(), ErrorCodeEnum.SQL_NOT_STANDARD.getMsg(), sqlString,new HashMap<>());
+            strategyDto.getData().put("data","LIMIT条件不符合规范");
+            return strategyDto;
         }
-        //判断查询条件是否包含select * 这里存在bug
+
         boolean isAllCondition = allConditionJudge(query);
         if (!isAllCondition) {
-            return Resp.error(ErrorCodeEnum.SQL_NOT_STANDARD.getCode(), ErrorCodeEnum.SQL_NOT_STANDARD.getMsg()).put("data", "sql含有*号");
+            StrategyDto strategyDto = new  StrategyDto(ErrorCodeEnum.SQL_NOT_STANDARD.getCode(), ErrorCodeEnum.SQL_NOT_STANDARD.getMsg(), sqlString,new HashMap<>());
+            strategyDto.getData().put("data", "sql含有*号");
+            return strategyDto;
         }
 
         boolean useIndex = super.isUseIndex(sqlExamineReqVo);
         if (!useIndex) {
-            return Resp.error(ErrorCodeEnum.SQL_NOT_STANDARD.getCode(), ErrorCodeEnum.SQL_NOT_STANDARD.getMsg()).put("data", "SQL中存在全表扫");
+            StrategyDto strategyDto = new StrategyDto(ErrorCodeEnum.SQL_NOT_STANDARD.getCode(), ErrorCodeEnum.SQL_NOT_STANDARD.getMsg(), sqlString,new HashMap<>());
+            strategyDto.getData().put("data", "SQL中存在全表扫");
+            return strategyDto;
         }
-        return Resp.ok();
+        return new StrategyDto(0, "success",sqlString,null);
+
     }
 
 //    private SQLStatement parser(String sql, String dbType) throws SQLSyntaxErrorException {
@@ -106,11 +114,11 @@ public class DqlSqlStrategy extends SqlStrategyBase implements SqlExamineBase {
         List<SQLSelectItem> selectConditionList = query.getSelectList();
         for (SQLSelectItem sqlSelectItem : selectConditionList) {
             SQLExpr expr = sqlSelectItem.getExpr();
-            if (expr instanceof SQLAllColumnExpr){
+            if (expr instanceof SQLAllColumnExpr) {
                 log.error("SQL含有*号");
                 return false;
             }
-            if (expr instanceof SQLPropertyExpr ) {
+            if (expr instanceof SQLPropertyExpr) {
                 SQLPropertyExpr expr1 = (SQLPropertyExpr) expr;
                 if (expr1.getName().equals("*")) {
                     log.error("SQL含有*号");

@@ -1,5 +1,6 @@
 package com.example.sqlexamine.vo;
 
+import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
 /**
@@ -8,6 +9,8 @@ import lombok.Data;
  */
 @Data
 public class SqlExamineReqVo {
+    @ApiModelProperty(required= true,name = "数据库类型默认mysql",example = "mysql")
     private String dbType;
+    @ApiModelProperty(required= true,name = "sql语句")
     private String sqlString;
 }

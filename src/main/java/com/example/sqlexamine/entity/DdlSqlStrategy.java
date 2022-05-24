@@ -10,15 +10,12 @@ import com.alibaba.druid.sql.ast.statement.*;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlCreateTableStatement;
 import com.example.sqlexamine.config.SqlExamineConfig;
 import com.example.sqlexamine.constant.ErrorCodeEnum;
+import com.example.sqlexamine.entity.dto.StrategyDto;
 import com.example.sqlexamine.exception.BizException;
-import com.example.sqlexamine.utils.Resp;
 import com.example.sqlexamine.vo.SqlExamineReqDQLReqVo;
-import com.example.sqlexamine.vo.SqlExamineReqVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import org.springframework.validation.BindException;
 
 import java.sql.SQLSyntaxErrorException;
 import java.util.ArrayList;
@@ -38,7 +35,7 @@ import java.util.stream.Collectors;
  * - smallint(6)
  * - mediumint(9)
  * - bigint(20)
- *
+ * <p>
  * 针对create SQL
  * truncate目前不支持审核
  */
@@ -51,14 +48,8 @@ public class DdlSqlStrategy implements SqlExamineBase {
     private final static String dbType = "mysql";
 
 
-    //private final boolean isDatetimeJudgeEnable;
-
-//    public DdlSqlStrategy(boolean isDatetimeJudgeEnable) {
-//        this.isDatetimeJudgeEnable = isDatetimeJudgeEnable;
-//    }
-
     @Override
-    public Resp examine(SqlExamineReqDQLReqVo sqlExamineReqVo) {
+    public StrategyDto examine(SqlExamineReqDQLReqVo sqlExamineReqVo) {
         String sqlString = sqlExamineReqVo.getSqlString();
         log.info("原始sql:{}", sqlString);
         SQLUtils.format(sqlString, dbType);
@@ -66,18 +57,22 @@ public class DdlSqlStrategy implements SqlExamineBase {
         try {
             statement = (SQLDDLStatement) parser(sqlString, dbType);
         } catch (SQLSyntaxErrorException e) {
-            return Resp.error(ErrorCodeEnum.SYSTEM_ERR.getCode(),e.getMessage());
+            return new StrategyDto(ErrorCodeEnum.SYSTEM_ERR.getCode(), e.getMessage(), sqlString, null);
+        }
+        if (statement instanceof SQLCreateIndexStatement) {
+//            create index 现在不需要过检测
+            return new StrategyDto(0, "success", sqlString, null);
         }
         MySqlCreateTableStatement createTableStatement = (MySqlCreateTableStatement) statement;
         assert createTableStatement != null;
 
         List<SQLAssignItem> tableOptions = createTableStatement.getTableOptions();
-        if (tableOptions.size() != 0){
+        if (tableOptions.size() != 0) {
             Map<String, String> map = engineAndCharsetJudge(tableOptions);
-            if ((!map.get("ENGINE").equalsIgnoreCase("INNODB")) && (!map.get("ENGINE").isEmpty())){
+            if ((!map.get("ENGINE").equalsIgnoreCase("INNODB")) && (!map.get("ENGINE").isEmpty())) {
                 throw new BizException("engine必须为innodb");
             }
-            if (!map.get("CHARSET").equalsIgnoreCase("UTF8MB4") && !(map.get("CHARSET").isEmpty())){
+            if (!map.get("CHARSET").equalsIgnoreCase("UTF8MB4") && !(map.get("CHARSET").isEmpty())) {
                 throw new BizException("CHARSET 必须为utf8mb4");
             }
         }
@@ -92,7 +87,7 @@ public class DdlSqlStrategy implements SqlExamineBase {
                 sqlDefinitionHandle((SQLColumnDefinition) sqlTableElement);
             }
         }
-        return Resp.ok();
+        return new StrategyDto(0, "success", sqlString, null);
     }
 
     private void sqlDefinitionHandle(SQLColumnDefinition sqlTableElement) {
@@ -193,7 +188,6 @@ public class DdlSqlStrategy implements SqlExamineBase {
         if (list.size() > 1) {
             throw new SQLSyntaxErrorException("MultiQueries is not supported,use single query instead ");
         }
-//        System.out.println("list:" + list);
         return list.get(0);
     }
 
@@ -217,8 +211,9 @@ public class DdlSqlStrategy implements SqlExamineBase {
         }
         return false;
     }
+
     //判断是否是innodb 判断字符集是否是utf-8mb4
-    private Map<String, String> engineAndCharsetJudge(List<SQLAssignItem> tableOptions){
+    private Map<String, String> engineAndCharsetJudge(List<SQLAssignItem> tableOptions) {
         Map<String, String> resultMap = tableOptions.stream().collect(Collectors.toMap(
                 (item) -> {
                     SQLIdentifierExpr target = (SQLIdentifierExpr) item.getTarget();

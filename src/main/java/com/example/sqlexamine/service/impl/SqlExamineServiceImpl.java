@@ -1,6 +1,5 @@
 package com.example.sqlexamine.service.impl;
 
-import com.example.sqlexamine.config.SqlExamineConfig;
 import com.example.sqlexamine.constant.ErrorCodeEnum;
 import com.example.sqlexamine.constant.SqlOperationEnum;
 import com.example.sqlexamine.entity.DdlSqlStrategy;
@@ -9,15 +8,14 @@ import com.example.sqlexamine.entity.SqlExamineBase;
 import com.example.sqlexamine.entity.dml.DeleteSqlExamineStrategy;
 import com.example.sqlexamine.entity.dml.InsertSqlExamineStrategy;
 import com.example.sqlexamine.entity.dml.UpdateSqlExamineStrategy;
+import com.example.sqlexamine.entity.dto.StrategyDto;
 import com.example.sqlexamine.service.SqlExamineService;
 import com.example.sqlexamine.utils.Resp;
 import com.example.sqlexamine.vo.SqlExamineReqDQLReqVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * @Author chenl
@@ -39,7 +37,7 @@ public class SqlExamineServiceImpl implements SqlExamineService {
     private static final Map<String, SqlExamineBase> sqlStrategyMap = new HashMap<String, SqlExamineBase>();
 
     @Autowired
-    public void setIsEnable(SqlExamineConfig sqlExamineConfig) {
+    public void setIsEnable() {
 //        sqlStrategyMap.put(SqlOperationEnum.SELECT.name(), new DqlSqlStrategy(isEnable));
 //        sqlStrategyMap.put(SqlOperationEnum.INSERT.name(), new DmlSqlStrategy(isEnable));
 //        sqlStrategyMap.put(SqlOperationEnum.UPDATE.name(), new DmlSqlStrategy(isEnable));
@@ -52,34 +50,39 @@ public class SqlExamineServiceImpl implements SqlExamineService {
         sqlStrategyMap.put(SqlOperationEnum.CREATE.name(), ddlSqlStrategy);
     }
 
-//    private  static final Map<String, SqlExamineBase> sqlStrategyMap = new HashMap<String,SqlExamineBase>(){{
-//        put(SqlOperationEnum.SELECT.name(),new DqlSqlStrategy(isEnable));
-//        put(SqlOperationEnum.INSERT.name(),new DmlSqlStrategy(isEnable));
-//        put(SqlOperationEnum.UPDATE.name(),new DmlSqlStrategy(isEnable));
-//        put(SqlOperationEnum.DELETE.name(),new DmlSqlStrategy(isEnable));
-//        put(SqlOperationEnum.CREATE.name(),new DdlSqlStrategy(isEnable));
-//    }};
+
 
     /**
      * SQL需要顶格写 先这么处理吧 还没想好怎么处理
      */
     @Override
-    public Resp examine(SqlExamineReqDQLReqVo sqlExamineReqVo) {
+    public List<StrategyDto> examine(SqlExamineReqDQLReqVo sqlExamineReqVo) {
         String sqlString = sqlExamineReqVo.getSqlString();
         int i = sqlString.indexOf(" ");
-        if (i == 0) {
-            return Resp.error(ErrorCodeEnum.SQL_NOT_STANDARD.getCode(), ErrorCodeEnum.SQL_NOT_STANDARD.getMsg()).put("data","SQL需要顶格写");
+        ArrayList<StrategyDto> result = new ArrayList<>();
+
+        String[] split = sqlString.split(";");
+        for (String s : split) {
+            if (i == 0) {
+                StrategyDto put = new StrategyDto(ErrorCodeEnum.SQL_NOT_STANDARD.getCode(), ErrorCodeEnum.SQL_NOT_STANDARD.getMsg(), s,new HashMap<>());
+                put.getData().put("data", "SQL需要顶格写");
+                result.add(put);
+                return result;
+            }
+
+            String substring = s.substring(0, i);
+            substring = substring.replaceAll("\n","");
+            SqlExamineBase sqlExamineBase = sqlStrategyMap.get(substring.toUpperCase());
+            if (Objects.isNull(sqlExamineBase)) {
+                StrategyDto put = new StrategyDto(ErrorCodeEnum.NOT_ALLOW_SQL_TYPE.getCode(), ErrorCodeEnum.NOT_ALLOW_SQL_TYPE.getMsg(), s,new HashMap<>());
+                put.getData().put("data", "不支持的SQL_TYPE");
+                result.add(put);
+                return result;
+            }
+            sqlExamineReqVo.setSqlString(s);
+            StrategyDto examine = sqlExamineBase.examine(sqlExamineReqVo);
+            result.add(examine);
         }
-        String substring = sqlString.substring(0, i);
-//        if (substring.toUpperCase().equals(SqlOperationEnum.INSERT.name())){
-//            return Resp.ok().put("data","INSERT无须审核");
-//        }
-        SqlExamineBase sqlExamineBase = sqlStrategyMap.get(substring.toUpperCase());
-        if (Objects.isNull(sqlExamineBase)) {
-            return Resp.error(ErrorCodeEnum.NOT_ALLOW_SQL_TYPE.getCode(), ErrorCodeEnum.NOT_ALLOW_SQL_TYPE.getMsg());
-        }
-        return sqlExamineBase.examine(sqlExamineReqVo);
+        return result;
     }
-
-
 }

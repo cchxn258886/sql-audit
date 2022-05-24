@@ -1,5 +1,6 @@
 package com.example.sqlexamine.vo;
 
+import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
 /**
@@ -9,9 +10,12 @@ import lombok.Data;
 
 @Data
 public class SqlExamineReqDQLReqVo  extends SqlExamineReqVo{
-    private String uuid;
+    @ApiModelProperty(required = true,name = "数据库名")
     private String databaseName;
+    @ApiModelProperty(required = true,name = "数据库ip地址")
     private String ipAddress;
+    @ApiModelProperty(required = true,name = "数据库用户密码")
     private String password;
+    @ApiModelProperty(required = true,name = "数据库用户名")
     private String username;
 }

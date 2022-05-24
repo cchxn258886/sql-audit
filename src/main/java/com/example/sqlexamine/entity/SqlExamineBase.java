@@ -1,8 +1,7 @@
 package com.example.sqlexamine.entity;
 
-import com.example.sqlexamine.utils.Resp;
+import com.example.sqlexamine.entity.dto.StrategyDto;
 import com.example.sqlexamine.vo.SqlExamineReqDQLReqVo;
-import com.example.sqlexamine.vo.SqlExamineReqVo;
 
 /**
  * @Author chenl
@@ -10,5 +9,5 @@ import com.example.sqlexamine.vo.SqlExamineReqVo;
  */
 
 public interface SqlExamineBase {
-    Resp examine(SqlExamineReqDQLReqVo sqlExamineReqVo);
+    StrategyDto examine(SqlExamineReqDQLReqVo sqlExamineReqVo);
 }

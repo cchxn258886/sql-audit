@@ -6,6 +6,7 @@ import com.alibaba.druid.sql.ast.statement.SQLInsertStatement;
 import com.example.sqlexamine.constant.ErrorCodeEnum;
 import com.example.sqlexamine.entity.SqlExamineBase;
 import com.example.sqlexamine.entity.SqlStrategyBase;
+import com.example.sqlexamine.entity.dto.StrategyDto;
 import com.example.sqlexamine.exception.BizException;
 import com.example.sqlexamine.utils.Resp;
 import com.example.sqlexamine.vo.SqlExamineReqDQLReqVo;
@@ -13,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.sql.SQLSyntaxErrorException;
+import java.util.HashMap;
 
 /**
  * @Author chenl
@@ -23,8 +25,9 @@ import java.sql.SQLSyntaxErrorException;
 public class InsertSqlExamineStrategy  extends SqlStrategyBase implements SqlExamineBase {
 
     @Override
-    public Resp examine(SqlExamineReqDQLReqVo sqlExamineReqVo) {
+    public StrategyDto examine(SqlExamineReqDQLReqVo sqlExamineReqVo) {
         String sqlString = sqlExamineReqVo.getSqlString();
+        sqlString = sqlString.replace("\n","");
         log.info("原始sql:{}", sqlString);
         SQLUtils.format(sqlString,SqlStrategyBase.DB_TYPE);
         SQLInsertStatement insertStatement = null;
@@ -35,8 +38,13 @@ public class InsertSqlExamineStrategy  extends SqlStrategyBase implements SqlExa
         }
         /*INSERT 只是判断是否使用了 INSERT INTO aa values(xx) 这里的逻辑 需要包含全列名*/
         if (insertStatement.getColumns().size() == 0){
-            return Resp.error(ErrorCodeEnum.SQL_NOT_STANDARD.getCode(),ErrorCodeEnum.SQL_NOT_STANDARD.getMsg()).put("data","INSERT语句没有指定columnName");
+            StrategyDto strategyDto = new StrategyDto(ErrorCodeEnum.SQL_NOT_STANDARD.getCode(), ErrorCodeEnum.SQL_NOT_STANDARD.getMsg(), sqlString,new HashMap<>());
+            strategyDto.getData().put("data","INSERT语句没有指定columnName");
+                    //.put("data", "INSERT语句没有指定columnName");
+            return strategyDto;
         }
-        return Resp.ok();
+        StrategyDto strategyDto = new StrategyDto(0, "success", sqlString, new HashMap<>());
+        //strategyDto.getData().put("data", "INSERT语句没有指定columnName");
+        return strategyDto;
     }
 }
