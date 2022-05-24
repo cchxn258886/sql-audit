@@ -18,5 +18,6 @@ public class SlowLogTempTextEntity {
     private String id;
     private String sqlTextHash;
     private String sqlText;
+    /** 添加 createTime 字段。阿里云的变更导致这张表筛选条件出现问题 */
     private Date createTime;
 }
