@@ -27,6 +27,6 @@
 
     <select id="getSlowLogInfo" resultType="com.example.sqlexamine.entity.dto.SlowLogInfoDto">
         select t1.max_exec_time,t1.db_name,sltt.sql_text from (select max_exec_time ,db_name,sql_text_hash from slow_log_template where slow_log_template.create_time between #{startTime} and #{endTime}
-                                                                              ) t1 left join slow_log_temp_text sltt on sltt.sql_text_hash=t1.sql_text_hash where sltt.crate_time between #{startTime} and #{endTime};
+                                                                              ) t1 left join slow_log_temp_text sltt on sltt.sql_text_hash=t1.sql_text_hash where sltt.create_time between #{startTime} and #{endTime};
     </select>
 </mapper>
