@@ -169,8 +169,7 @@ public class AliyunRDSOperationServiceImpl implements AliyunRDSOperationService 
         Date createTime = new Date();
         QueryWrapper<SlowLogTemplateEntity> slowLogTemplateEntityQueryWrapper = new QueryWrapper<>();
         slowLogTemplateEntityQueryWrapper.between("create_time", RdsTimeUtils.getTodayZeroHour(createTime), RdsTimeUtils.getTodayAllHour(createTime));
-        Integer count = slowLogTemplateDao.selectCount(slowLogTemplateEntityQueryWrapper);
-        //TODO 这里存在bug 如果两个任务运行的时候
+        Long count = slowLogTemplateDao.selectCount(slowLogTemplateEntityQueryWrapper);
         if (count != 0) {
             throw new BizException("当天慢日志模版无需再次生成。");
         }
@@ -309,7 +308,7 @@ public class AliyunRDSOperationServiceImpl implements AliyunRDSOperationService 
             QueryWrapper<SlowLogTemplateEntity> slowLogTemplateEntityQueryWrapper = new QueryWrapper<>();
             slowLogTemplateEntityQueryWrapper.eq("instance_id",s);
             slowLogTemplateEntityQueryWrapper.between("create_time", RdsTimeUtils.getTodayZeroHour(createTime), RdsTimeUtils.getTodayAllHour(createTime));
-            Integer count = slowLogTemplateDao.selectCount(slowLogTemplateEntityQueryWrapper);
+            Long count = slowLogTemplateDao.selectCount(slowLogTemplateEntityQueryWrapper);
             if (count != 0) {
                 throw new BizException("当天慢日志模版无需再次生成。");
             }

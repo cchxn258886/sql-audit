@@ -119,8 +119,9 @@ public class XxlJobTask {
             mailSendService.sendMail(methodParams[0], "昨日没有慢日志产生");
             return;
         }
-
-        mailSendService.sendMail(methodParams[0], formatListDto(slowLogInfo));
+        for (String methodParam : methodParams) {
+            mailSendService.sendMail(methodParam, formatListDto(slowLogInfo));
+        }
     }
 
 
