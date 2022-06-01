@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.sqlexamine.entity.dao.AccessInfoDao">
+    <!-- 可根据自己的需求，是否要使用 -->
+    <resultMap type="com.example.sqlexamine.entity.AccessInfoEntity" id="hostInfoMap">
+        <result property="accessId" column="access_id"/>
+        <result property="accessKeySecret" column="access_key_secret"/>
+    </resultMap>
+<!--     resultType="com.example.sqlexamine.entity.AccessInfoEntity"-->
+    <select id="list" resultMap="hostInfoMap">
+        select uuid,
+               inet_ntoa(ip) as ip,
+               username,
+               host_password,
+               host_desc,
+               create_time,
+               update_time,
+               cloud_host_Info
+        from host_info
+        where uuid = #{uuid};
+    </select>
+
+</mapper>
