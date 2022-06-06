@@ -209,7 +209,7 @@ public class AliyunRDSOperationServiceImpl implements AliyunRDSOperationService 
             for (DescribeSlowLogsResponseBody.DescribeSlowLogsResponseBodyItemsSQLSlowLog sqlSlowLog : sqlSlowLogs) {
                 String uuid = UUID.randomUUID().toString().replace("-", "");
                 if (sqlSlowLog.maxExecutionTime == 0) {
-                    log.info("sqlMaxExecutionTime为0");
+                    log.info("{}.sqlMaxExecutionTime为0",sqlSlowLog.getSQLText());
                     continue;
                 }
                 SlowLogTemplateEntity slowLogTemplateEntity = new SlowLogTemplateEntity(
@@ -231,8 +231,12 @@ public class AliyunRDSOperationServiceImpl implements AliyunRDSOperationService 
             }
             log.info("slowLogTemplateEntities:{}", slowLogTemplateEntities);
             log.info("slowLogTempTextEntities:{}", slowLogTempTextEntities);
-            slowLogTemplateDao.insertList(slowLogTemplateEntities);
-            slowLogTempTextDao.insertList(slowLogTempTextEntities);
+            if (slowLogTemplateEntities.size() != 0 &&  slowLogTempTextEntities.size()!=0){
+                slowLogTemplateDao.insertList(slowLogTemplateEntities);
+                slowLogTempTextDao.insertList(slowLogTempTextEntities);
+            }else {
+                log.info("当前实例:{} 不存在慢日志",instanceId);
+            }
         } catch (Exception e) {
             log.error("慢日志模版写入数据库失败:{}", e.getMessage());
             throw new BizException("慢日志模版写入数据库错误.");
